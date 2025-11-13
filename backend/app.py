@@ -1,34 +1,33 @@
-# backend/app.py
 import os
 import sys
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# Agregar el directorio backend al path
+# Asegurarse de que el m√≥dulo backend sea accesible
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from braille_detector import detectar_braille
 except ImportError as e:
     print(f"Error importando braille_detector: {e}")
-    # Fallback si no est· disponible
+
     def detectar_braille(path):
         return "Error: Modelo no disponible"
 
-# ConfiguraciÛn
+# Configuraci√≥n Flask
 app = Flask(__name__)
 CORS(app)
-TEMP_DIR = os.path.join(os.path.dirname(__file__), "temp")
 
+TEMP_DIR = os.path.join(os.path.dirname(__file__), "temp")
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-# Health check
+# Health checks
 @app.route("/", methods=["GET"])
-def health():
+def root():
     return jsonify({
         "status": "ok",
         "service": "EasyBraille Backend",
-        "environment": os.getenv("FLASK_ENV", "development")
+        "environment": os.getenv("FLASK_ENV", "production")
     }), 200
 
 @app.route("/api/health", methods=["GET"])
@@ -39,7 +38,7 @@ def api_health():
 @app.route("/api/braille-image", methods=["POST"])
 def translate_braille():
     if "image" not in request.files:
-        return jsonify({"error": "No se subiÛ ninguna imagen"}), 400
+        return jsonify({"error": "No se subi√≥ ninguna imagen"}), 400
 
     file = request.files["image"]
     file_path = os.path.join(TEMP_DIR, file.filename)
