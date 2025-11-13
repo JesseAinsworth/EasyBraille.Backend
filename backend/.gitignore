@@ -1,0 +1,38 @@
+__pycache__/
+*.pyc
+dataset/
+temp/
+*.log
+*.DS_Store
+train.py
+inspect_*.py
+*.jpg
+*.png
+*.jpeg
+
+# Virtual envs
+.venv/
+env/
+venv/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# IDEs
+.vscode/
+.idea/
+<<<<<<< HEAD
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+=======
+>>>>>>> 5529271456a03937e04e2cbf91cde2de7f60158f
