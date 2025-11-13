@@ -3,11 +3,11 @@ FROM python:3.10-slim
 WORKDIR /app
 
 # Instalar dependencias del sistema
-RUN apt-get update && apt-get install -y 
-    build-essential 
-    libsm6 
-    libxext6 
-    libxrender-dev 
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements
