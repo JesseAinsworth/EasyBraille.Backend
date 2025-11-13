@@ -1,7 +1,44 @@
+"""
+backend/config.py - Configuración para producción en Render
+"""
+
 import os
+from datetime import timedelta
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "models", "braille-yolov8.pt")
+# Entorno
+ENVIRONMENT = os.getenv('FLASK_ENV', 'development')
+IS_PRODUCTION = ENVIRONMENT == 'production'
 
-# ConfiguraciÃ³n de estadÃ­sticas (puedes guardar en DB en el futuro)
-STATS_FILE = os.path.join(BASE_DIR, "stats.json")
+# Puerto
+PORT = int(os.getenv('PORT', 8000))
+
+# CORS Configuration
+CORS_ORIGINS = [
+    'http://localhost:3000',  # Frontend local
+    'http://localhost:5000',  # Backend local
+    'https://easybraille-frontend.onrender.com',  # Frontend en Render
+    'https://easybraille-backend.onrender.com',   # Backend en Render
+]
+
+# Si está en producción, ser más restrictivo
+if IS_PRODUCTION:
+    CORS_ORIGINS = [
+        'https://easybraille-frontend.onrender.com',
+        'https://easybraille-backend.onrender.com',
+    ]
+
+# Timeout para uploads (10 minutos)
+MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10MB
+
+# Logging
+LOG_LEVEL = 'INFO' if IS_PRODUCTION else 'DEBUG'
+
+# Modelo YOLO
+MODEL_PATH = 'backend/models/best.pt'
+
+# Directorio temporal
+TEMP_DIR = os.getenv('TEMP_DIR', 'temp')
+
+print(f'[CONFIG] Environment: {ENVIRONMENT}')
+print(f'[CONFIG] Port: {PORT}')
+print(f'[CONFIG] CORS Origins: {CORS_ORIGINS}')
