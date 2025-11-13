@@ -1,24 +1,26 @@
-# Usar imagen oficial con las herramientas necesarias
+# Imagen base
 FROM python:3.10-slim
 
+# Crear directorio de trabajo
 WORKDIR /app
 
-# Instalar solo dependencias de sistema críticas
+# Instalar dependencias del sistema necesarias
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar requirements primero (para cache de Docker)
+# Copiar dependencias
 COPY requirements.txt .
 
-# Instalar pip upgrade y luego dependencias
+# Instalar dependencias Python
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copiar aplicación
+# Copiar todo el proyecto
 COPY . .
 
+# Exponer puerto (Render usa $PORT)
 EXPOSE 8000
 
 # Comando de inicio
