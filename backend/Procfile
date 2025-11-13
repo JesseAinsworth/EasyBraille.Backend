@@ -1,1 +1,0 @@
-web: gunicorn app:app -b :5000 --workers ${GUNICORN_WORKERS:-3} --timeout ${GUNICORN_TIMEOUT:-120}
