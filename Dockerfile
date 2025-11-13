@@ -1,34 +1,47 @@
+# Imagen base ligera con Python 3.10
 FROM python:3.10-slim
 
-WORKDIR /app
+# Informaci贸n del mantenedor
+LABEL maintainer="maintainer@example.com"
+LABEL description="Backend de EasyBraille - Flask con YOLOv8 y MongoDB"
 
-# Instalar dependencias del sistema
-RUN apt-get update && apt-get install -y \
+# Variables de entorno para producci贸n
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV FLASK_ENV=production
+ENV GUNICORN_WORKERS=3
+ENV GUNICORN_TIMEOUT=120
+
+# Render clona el repo en esta ruta
+WORKDIR /opt/render/project/src
+
+# Instalar dependencias del sistema necesarias para OpenCV, Pillow, etc.
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
+    libgl1 \
+    libglib2.0-0 \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar requirements
-COPY requirements.txt .
+# Copiar el archivo de dependencias
+COPY requirements.txt ./
 
-# Instalar dependencias Python
-RUN pip install --no-cache-dir -r requirements.txt
+# Instalar dependencias de Python (incluyendo PyTorch CPU)
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -f https://download.pytorch.org/whl/cpu/torch_stable.html torch torchvision \
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir gunicorn
 
-# Copiar c骴igo de la aplicaci髇
+# Copiar todos los archivos del backend al contenedor
 COPY . .
 
-# Crear directorio de modelos si no existe
-RUN mkdir -p backend/models
+# Crear usuario no root por seguridad
+RUN useradd --create-home --shell /bin/bash appuser \
+    && chown -R appuser:appuser /opt/render/project/src
+USER appuser
 
-# Exponer puerto
-EXPOSE 8000
+# Exponer el puerto Flask/Gunicorn
+EXPOSE 5000
 
-# Variables de entorno
-ENV FLASK_APP=backend.app:app
-ENV FLASK_ENV=production
-ENV PYTHONUNBUFFERED=1
-
-# Comando de inicio - optimizado para Render
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--worker-class", "sync", "--timeout", "120", "backend.app:app"]
+# Comando de ejecuci贸n (Gunicorn para producci贸n)
+CMD ["sh", "-c", "exec gunicorn app:app -b 0.0.0.0:5000 --workers ${GUNICORN_WORKERS} --timeout ${GUNICORN_TIMEOUT} --log-level info"]
