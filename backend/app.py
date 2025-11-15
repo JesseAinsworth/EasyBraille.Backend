@@ -18,7 +18,7 @@ def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = ALLOWED_ORIGIN
     response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
     response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
-    response.headers["Access-Control-Allow-Credentials"] = "true"  # ✅ credenciales
+    response.headers["Access-Control-Allow-Credentials"] = "true"
     return response
 
 # 3️⃣ Conexión a MongoDB Atlas
@@ -53,9 +53,6 @@ def register():
 
     try:
         data = request.get_json(silent=True)
-        if not data:
-            return jsonify({"error": "Formato inválido"}), 400
-
         email = data.get("email")
         password = data.get("password")
 
@@ -67,7 +64,7 @@ def register():
 
         hashed_pw = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
 
-        usuarios.insert_one({
+        result = usuarios.insert_one({
             "email": email,
             "password": hashed_pw.decode(),
             "name": email.split("@")[0],
@@ -77,12 +74,14 @@ def register():
             "updatedAt": datetime.utcnow()
         })
 
+        user_id = str(result.inserted_id)
         print(f"✅ Usuario registrado: {email}")
         return jsonify({
             "message": "Usuario registrado correctamente",
             "user": {
                 "name": email.split("@")[0],
-                "email": email
+                "email": email,
+                "userId": user_id
             }
         }), 200
 
@@ -101,9 +100,6 @@ def login():
 
     try:
         data = request.get_json(silent=True)
-        if not data:
-            return jsonify({"error": "Formato inválido"}), 400
-
         email = data.get("email")
         password = data.get("password")
 
@@ -128,7 +124,8 @@ def login():
                     "name": user["name"],
                     "email": user["email"],
                     "role": user.get("role", "user"),
-                    "isActive": user.get("isActive", True)
+                    "isActive": user.get("isActive", True),
+                    "userId": str(user["_id"])
                 }
             }), 200
         else:
@@ -149,31 +146,34 @@ def save_translation():
 
     try:
         data = request.get_json(silent=True)
-        if not data:
-            return jsonify({"error": "Formato inválido"}), 400
+        userId = data.get("userId")
+        originalText = data.get("originalText")
+        brailleText = data.get("brailleText")
+        translationType = data.get("translationType", "TEXT_TO_BRAILLE")
+        language = data.get("language", "es")
 
-        email = data.get("email")
-        original = data.get("original")
-        braille = data.get("braille")
-
-        if not email or not original or not braille:
+        if not userId or not originalText or not brailleText:
             return jsonify({"error": "Faltan campos"}), 400
 
+        now = datetime.utcnow()
         traducciones.insert_one({
-            "email": email,
-            "original": original,
-            "braille": braille,
-            "createdAt": datetime.utcnow()
+            "userId": userId,
+            "originalText": originalText,
+            "brailleText": brailleText,
+            "translationType": translationType,
+            "language": language,
+            "createdAt": now,
+            "updatedAt": now
         })
 
-        print(f"✅ Traducción guardada para {email}")
+        print(f"✅ Traducción guardada para usuario {userId}")
         return jsonify({"message": "Traducción guardada"}), 200
 
     except Exception as e:
         print(f"❌ Error al guardar traducción: {e}")
         return jsonify({"error": "Error interno"}), 500
 
-# 8️⃣ Historial de traducciones por usuario
+# 8️⃣ Historial de traducciones
 @app.route("/api/translations/history", methods=["GET", "OPTIONS"])
 def get_translation_history():
     if request.method == "OPTIONS":
@@ -183,11 +183,15 @@ def get_translation_history():
         return jsonify({"error": "Base de datos no disponible"}), 500
 
     try:
-        email = request.args.get("email")
-        if not email:
-            return jsonify({"error": "Falta el email"}), 400
+        userId = request.args.get("userId")
+        if not userId:
+            return jsonify({"error": "Falta el userId"}), 400
 
-        history = list(traducciones.find({"email": email}, {"_id": 0}))
+        history = list(traducciones.find(
+            {"userId": userId},
+            {"_id": 0}
+        ).sort("createdAt", -1).limit(10))
+
         return jsonify({"history": history}), 200
 
     except Exception as e:
