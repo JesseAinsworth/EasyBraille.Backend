@@ -26,14 +26,15 @@ try:
     if not MONGO_URI:
         raise Exception("MONGO_URI no está definido")
 
-    print(f"🔗 Conectando a MongoDB Atlas...")
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-    client.server_info()  # fuerza verificación
+    client.server_info()
     db = client["easybraille"]
     usuarios = db["users"]
+    traducciones = db["translations"]
 except Exception as e:
     print(f"❌ Error conectando a MongoDB: {e}")
     usuarios = None
+    traducciones = None
 
 # 4️⃣ Ruta raíz
 @app.route("/")
@@ -67,7 +68,7 @@ def register():
 
         usuarios.insert_one({
             "email": email,
-            "password": hashed_pw.decode(),  # guardar como string
+            "password": hashed_pw.decode(),
             "name": email.split("@")[0],
             "role": "user",
             "isActive": True,
@@ -113,15 +114,13 @@ def login():
             return jsonify({"error": "Usuario no encontrado"}), 404
 
         stored_pw = user["password"]
-
-        # Manejo flexible: string o Binary
         if isinstance(stored_pw, bson.binary.Binary):
             stored_pw = stored_pw.decode()
         elif isinstance(stored_pw, bytes):
             stored_pw = stored_pw.decode()
 
         if bcrypt.checkpw(password.encode("utf-8"), stored_pw.encode("utf-8")):
-            print(f"✅ Usuario autenticado: {email}")
+            print(f"✅ Login exitoso: {user}")
             return jsonify({
                 "message": "Inicio de sesión exitoso",
                 "user": {
@@ -138,7 +137,42 @@ def login():
         print(f"❌ Error en login: {e}")
         return jsonify({"error": "Error interno"}), 500
 
-# 7️⃣ Configuración Railway/Gunicorn
+# 7️⃣ Guardar traducción
+@app.route("/api/translations", methods=["POST", "OPTIONS"])
+def save_translation():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+
+    if traducciones is None:
+        return jsonify({"error": "Base de datos no disponible"}), 500
+
+    try:
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"error": "Formato inválido"}), 400
+
+        email = data.get("email")
+        original = data.get("original")
+        braille = data.get("braille")
+
+        if not email or not original or not braille:
+            return jsonify({"error": "Faltan campos"}), 400
+
+        traducciones.insert_one({
+            "email": email,
+            "original": original,
+            "braille": braille,
+            "createdAt": datetime.utcnow()
+        })
+
+        print(f"✅ Traducción guardada para {email}")
+        return jsonify({"message": "Traducción guardada"}), 200
+
+    except Exception as e:
+        print(f"❌ Error al guardar traducción: {e}")
+        return jsonify({"error": "Error interno"}), 500
+
+# 8️⃣ Configuración Railway/Gunicorn
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
