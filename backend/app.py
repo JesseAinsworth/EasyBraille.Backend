@@ -9,7 +9,7 @@ import bson
 # 1️⃣ Inicializar Flask
 app = Flask(__name__)
 
-# 2️⃣ Configurar CORS
+# 2️⃣ Configurar CORS con credenciales
 ALLOWED_ORIGIN = "https://www.easy-braille.com"
 CORS(app, resources={r"/api/*": {"origins": ALLOWED_ORIGIN}}, supports_credentials=True)
 
@@ -18,6 +18,7 @@ def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = ALLOWED_ORIGIN
     response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
     response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    response.headers["Access-Control-Allow-Credentials"] = "true"  # ✅ credenciales
     return response
 
 # 3️⃣ Conexión a MongoDB Atlas
@@ -172,7 +173,28 @@ def save_translation():
         print(f"❌ Error al guardar traducción: {e}")
         return jsonify({"error": "Error interno"}), 500
 
-# 8️⃣ Configuración Railway/Gunicorn
+# 8️⃣ Historial de traducciones por usuario
+@app.route("/api/translations/history", methods=["GET", "OPTIONS"])
+def get_translation_history():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+
+    if traducciones is None:
+        return jsonify({"error": "Base de datos no disponible"}), 500
+
+    try:
+        email = request.args.get("email")
+        if not email:
+            return jsonify({"error": "Falta el email"}), 400
+
+        history = list(traducciones.find({"email": email}, {"_id": 0}))
+        return jsonify({"history": history}), 200
+
+    except Exception as e:
+        print(f"❌ Error al obtener historial: {e}")
+        return jsonify({"error": "Error interno"}), 500
+
+# 9️⃣ Configuración Railway/Gunicorn
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
