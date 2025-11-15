@@ -32,7 +32,7 @@ def index():
 @app.route("/api/auth/register", methods=["POST", "OPTIONS"])
 def register():
     if request.method == "OPTIONS":
-        return '', 200
+        return '', 200  # Preflight OK
 
     try:
         data = request.get_json()
@@ -72,7 +72,7 @@ def register():
 @app.route("/api/auth/login", methods=["POST", "OPTIONS"])
 def login():
     if request.method == "OPTIONS":
-        return '', 200
+        return '', 200  # Preflight OK
 
     try:
         data = request.get_json()
@@ -104,5 +104,5 @@ def login():
 
 # ✅ Configuración Railway/Gunicorn
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
+    port = int(os.environ.get("PORT", 8080))  # Railway asigna el puerto dinámicamente
     app.run(host="0.0.0.0", port=port, debug=False)
