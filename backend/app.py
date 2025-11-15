@@ -1,12 +1,13 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
+from datetime import datetime
 import os
 import bcrypt
 
 app = Flask(__name__)
 
-# ✅ CORS para dominio personalizado
+# ✅ CORS para tu dominio personalizado
 ALLOWED_ORIGIN = "https://www.easy-braille.com"
 CORS(app, resources={r"/api/*": {"origins": ALLOWED_ORIGIN}}, supports_credentials=True)
 
@@ -27,7 +28,7 @@ try:
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     client.server_info()  # fuerza verificación
     db = client["easybraille"]
-    usuarios = db["usuarios"]
+    usuarios = db["users"]
 except Exception as e:
     print(f"❌ Error conectando a MongoDB: {e}")
     usuarios = None
@@ -65,7 +66,11 @@ def register():
         usuarios.insert_one({
             "email": email,
             "password": hashed_pw,
-            "name": email.split("@")[0]
+            "name": email.split("@")[0],
+            "role": "user",
+            "isActive": True,
+            "createdAt": datetime.utcnow(),
+            "updatedAt": datetime.utcnow()
         })
 
         print(f"✅ Usuario registrado: {email}")
@@ -111,7 +116,9 @@ def login():
                 "message": "Inicio de sesión exitoso",
                 "user": {
                     "name": user["name"],
-                    "email": user["email"]
+                    "email": user["email"],
+                    "role": user.get("role", "user"),
+                    "isActive": user.get("isActive", True)
                 }
             }), 200
         else:
