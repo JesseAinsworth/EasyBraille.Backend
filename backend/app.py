@@ -13,7 +13,7 @@ def add_cors_headers(response):
     response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     return response
 
-# ✅ Nuevo endpoint de registro
+# ✅ Endpoint de registro con soporte para OPTIONS
 @app.route("/api/auth/register", methods=["POST", "OPTIONS"])
 def register():
     if request.method == "OPTIONS":
@@ -27,9 +27,7 @@ def register():
         if not email or not password:
             return jsonify({"error": "Faltan campos"}), 400
 
-        # Aquí iría la lógica real de registro (guardar en DB, etc.)
         print(f"📥 Registro recibido: {email}")
-
         return jsonify({"message": "Usuario registrado correctamente"}), 200
 
     except Exception as e:
