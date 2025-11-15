@@ -1,16 +1,4 @@
-# Servidor y CORS
 flask>=3.0
 flask-cors>=4.0
 gunicorn>=21.0
-
-# Procesamiento de imágenes
-pillow>=10.0
-opencv-python-headless>=4.8   # usa headless en servidores sin GUI
-numpy>=1.24
-pyyaml>=6.0
-
-# Requests HTTP
 requests>=2.25.0
-
-# IA / YOLO
-ultralytics>=8.0
