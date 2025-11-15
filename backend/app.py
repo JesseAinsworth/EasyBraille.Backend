@@ -17,11 +17,20 @@ def add_cors_headers(response):
     response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     return response
 
-# ✅ Conexión a MongoDB Atlas
-MONGO_URI = os.environ.get("MONGO_URI")  # Configura esta variable en Railway
-client = MongoClient(MONGO_URI)
-db = client["easybraille"]
-usuarios = db["usuarios"]
+# ✅ Conexión segura a MongoDB Atlas
+try:
+    MONGO_URI = os.environ.get("MONGO_URI")
+    if not MONGO_URI:
+        raise Exception("MONGO_URI no está definido")
+
+    print(f"🔗 Conectando a MongoDB Atlas...")
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    client.server_info()  # fuerza verificación
+    db = client["easybraille"]
+    usuarios = db["usuarios"]
+except Exception as e:
+    print(f"❌ Error conectando a MongoDB: {e}")
+    usuarios = None
 
 # ✅ Ruta raíz
 @app.route("/")
@@ -32,30 +41,34 @@ def index():
 @app.route("/api/auth/register", methods=["POST", "OPTIONS"])
 def register():
     if request.method == "OPTIONS":
-        return '', 200  # Preflight OK
+        return '', 200
+
+    if usuarios is None:
+        return jsonify({"error": "Base de datos no disponible"}), 500
 
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"error": "Formato inválido"}), 400
+
         email = data.get("email")
         password = data.get("password")
 
         if not email or not password:
             return jsonify({"error": "Faltan campos"}), 400
 
-        # Verifica si ya existe
         if usuarios.find_one({"email": email}):
             return jsonify({"error": "El usuario ya existe"}), 409
 
-        # Hash de contraseña
         hashed_pw = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
 
-        # Guarda en MongoDB
         usuarios.insert_one({
             "email": email,
             "password": hashed_pw,
             "name": email.split("@")[0]
         })
 
+        print(f"✅ Usuario registrado: {email}")
         return jsonify({
             "message": "Usuario registrado correctamente",
             "user": {
@@ -72,10 +85,16 @@ def register():
 @app.route("/api/auth/login", methods=["POST", "OPTIONS"])
 def login():
     if request.method == "OPTIONS":
-        return '', 200  # Preflight OK
+        return '', 200
+
+    if usuarios is None:
+        return jsonify({"error": "Base de datos no disponible"}), 500
 
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"error": "Formato inválido"}), 400
+
         email = data.get("email")
         password = data.get("password")
 
@@ -86,8 +105,8 @@ def login():
         if not user:
             return jsonify({"error": "Usuario no encontrado"}), 404
 
-        # Verifica contraseña
         if bcrypt.checkpw(password.encode("utf-8"), user["password"]):
+            print(f"✅ Usuario autenticado: {email}")
             return jsonify({
                 "message": "Inicio de sesión exitoso",
                 "user": {
@@ -104,5 +123,5 @@ def login():
 
 # ✅ Configuración Railway/Gunicorn
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))  # Railway asigna el puerto dinámicamente
+    port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
