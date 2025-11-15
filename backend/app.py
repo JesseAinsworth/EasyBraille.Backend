@@ -3,9 +3,10 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 
-# CORS explícito para tu dominio
+# ✅ CORS para tu dominio personalizado
 CORS(app, resources={r"/api/*": {"origins": "https://www.easy-braille.com"}}, supports_credentials=True)
 
+# ✅ Encabezados CORS para todas las respuestas
 @app.after_request
 def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = "https://www.easy-braille.com"
@@ -13,11 +14,16 @@ def add_cors_headers(response):
     response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     return response
 
-# ✅ Endpoint de registro con soporte para OPTIONS
+# ✅ Endpoint de prueba
+@app.route("/")
+def index():
+    return jsonify({"message": "EasyBraille backend activo"})
+
+# ✅ Endpoint de registro con soporte para preflight
 @app.route("/api/auth/register", methods=["POST", "OPTIONS"])
 def register():
     if request.method == "OPTIONS":
-        return '', 200  # Respuesta para preflight CORS
+        return '', 200  # Preflight OK
 
     try:
         data = request.get_json()
@@ -28,11 +34,15 @@ def register():
             return jsonify({"error": "Faltan campos"}), 400
 
         print(f"📥 Registro recibido: {email}")
+        # Aquí iría la lógica real de guardado en base de datos
+
         return jsonify({"message": "Usuario registrado correctamente"}), 200
 
     except Exception as e:
         print(f"❌ Error en registro: {e}")
         return jsonify({"error": "Error interno"}), 500
+
+# ✅ Puedes agregar más rutas aquí (login, traducción, etc.)
 
 if __name__ == "__main__":
     app.run(debug=False, port=8000)
