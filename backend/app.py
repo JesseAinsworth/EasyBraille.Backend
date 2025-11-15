@@ -6,7 +6,7 @@ import bcrypt
 
 app = Flask(__name__)
 
-# ✅ CORS para tu dominio personalizado
+# ✅ CORS para dominio personalizado
 ALLOWED_ORIGIN = "https://www.easy-braille.com"
 CORS(app, resources={r"/api/*": {"origins": ALLOWED_ORIGIN}}, supports_credentials=True)
 
