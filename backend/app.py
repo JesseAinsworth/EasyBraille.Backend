@@ -51,7 +51,7 @@ def send_reset_email(to_email, reset_url):
         return True
     
     message = Mail(
-        from_email='noreply@easy-braille.com',
+        from_email='noreply@em8123.easy-braille.com',
         to_emails=to_email,
         subject='Recuperación de contraseña - EasyBraille',
         html_content=f'''
