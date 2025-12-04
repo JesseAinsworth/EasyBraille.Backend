@@ -356,7 +356,200 @@ def reset_password():
         print(f"❌ Error en reset-password: {e}")
         return jsonify({"error": "Error interno del servidor"}), 500
 
-# 1️⃣1️⃣ Configuración Railway/Gunicorn
+# 1️⃣1️⃣ Estadísticas del panel de administración
+@app.route("/api/admin/stats", methods=["GET", "OPTIONS"])
+def get_admin_stats():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+
+    if usuarios is None or traducciones is None:
+        return jsonify({"error": "Base de datos no disponible"}), 500
+
+    try:
+        # Calcular fechas
+        now = datetime.utcnow()
+        start_of_month = datetime(now.year, now.month, 1)
+        start_of_week = now - timedelta(days=7)
+
+        # Total de usuarios
+        total_users = usuarios.count_documents({})
+        
+        # Usuarios activos
+        active_users = usuarios.count_documents({"isActive": True})
+        
+        # Usuarios administradores
+        admin_users = usuarios.count_documents({"role": "admin"})
+        
+        # Usuarios regulares
+        regular_users = usuarios.count_documents({"role": "user"})
+
+        # Total de traducciones
+        total_translations = traducciones.count_documents({})
+        
+        # Traducciones esta semana
+        translations_this_week = traducciones.count_documents({
+            "createdAt": {"$gte": start_of_week}
+        })
+
+        # Traducciones por tipo
+        translations_by_type = list(traducciones.aggregate([
+            {"$group": {"_id": "$translationType", "count": {"$sum": 1}}}
+        ]))
+
+        # Traducciones por mes (últimos 6 meses)
+        six_months_ago = datetime(now.year, now.month, 1) - timedelta(days=180)
+        translations_last_6_months = list(traducciones.aggregate([
+            {"$match": {"createdAt": {"$gte": six_months_ago}}},
+            {"$group": {
+                "_id": {
+                    "year": {"$year": "$createdAt"},
+                    "month": {"$month": "$createdAt"}
+                },
+                "count": {"$sum": 1}
+            }},
+            {"$sort": {"_id.year": 1, "_id.month": 1}}
+        ]))
+
+        # Usuarios por mes (últimos 6 meses)
+        users_last_6_months = list(usuarios.aggregate([
+            {"$match": {"createdAt": {"$gte": six_months_ago}}},
+            {"$group": {
+                "_id": {
+                    "year": {"$year": "$createdAt"},
+                    "month": {"$month": "$createdAt"}
+                },
+                "count": {"$sum": 1}
+            }},
+            {"$sort": {"_id.year": 1, "_id.month": 1}}
+        ]))
+
+        # Calcular precisión IA y tiempo de respuesta (valores de ejemplo)
+        ai_accuracy = 95.5
+        avg_response_time = 1.2
+        success_rate = 98.0
+
+        return jsonify({
+            "stats": {
+                "users": {
+                    "total": total_users,
+                    "active": active_users,
+                    "admins": admin_users,
+                    "regular": regular_users,
+                    "last6Months": users_last_6_months
+                },
+                "translations": {
+                    "total": total_translations,
+                    "thisWeek": translations_this_week,
+                    "byType": translations_by_type,
+                    "last6Months": translations_last_6_months
+                },
+                "ai": {
+                    "totalInteractions": total_translations,
+                    "avgAccuracy": ai_accuracy,
+                    "avgResponseTime": avg_response_time,
+                    "successRate": success_rate
+                }
+            }
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error al obtener estadísticas admin: {e}")
+        return jsonify({"error": "Error interno"}), 500
+
+# 1️⃣2️⃣ Lista de usuarios para admin
+@app.route("/api/admin/users", methods=["GET", "OPTIONS"])
+def get_all_users():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+
+    if usuarios is None:
+        return jsonify({"error": "Base de datos no disponible"}), 500
+
+    try:
+        # Obtener todos los usuarios (sin contraseñas)
+        users_list = list(usuarios.find(
+            {},
+            {
+                "_id": 1,
+                "email": 1,
+                "name": 1,
+                "role": 1,
+                "isActive": 1,
+                "createdAt": 1,
+                "updatedAt": 1
+            }
+        ).sort("createdAt", -1))
+
+        # Convertir ObjectId a string
+        for user in users_list:
+            user["_id"] = str(user["_id"])
+
+        return jsonify({
+            "users": users_list,
+            "total": len(users_list)
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error al obtener usuarios: {e}")
+        return jsonify({"error": "Error interno"}), 500
+
+# 1️⃣3️⃣ Lista de traducciones para admin
+@app.route("/api/admin/translations", methods=["GET", "OPTIONS"])
+def get_all_translations():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+
+    if traducciones is None:
+        return jsonify({"error": "Base de datos no disponible"}), 500
+
+    try:
+        # Obtener todas las traducciones con límite
+        limit = int(request.args.get("limit", 50))
+        
+        translations_list = list(traducciones.find(
+            {},
+            {"_id": 0}
+        ).sort("createdAt", -1).limit(limit))
+
+        return jsonify({
+            "translations": translations_list,
+            "total": len(translations_list)
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error al obtener traducciones: {e}")
+        return jsonify({"error": "Error interno"}), 500
+
+# 1️⃣4️⃣ Probar conexión a la base de datos
+@app.route("/api/admin/test-connection", methods=["GET", "OPTIONS"])
+def test_connection():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+
+    try:
+        if usuarios is None or traducciones is None:
+            return jsonify({
+                "connected": False,
+                "message": "Base de datos no disponible"
+            }), 500
+
+        # Intentar hacer un ping a la base de datos
+        client.admin.command('ping')
+        
+        return jsonify({
+            "connected": True,
+            "message": "Conexión exitosa a MongoDB",
+            "database": "easybraille"
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error al probar conexión: {e}")
+        return jsonify({
+            "connected": False,
+            "message": f"Error: {str(e)}"
+        }), 500
+
+# 1️⃣5️⃣ Configuración Railway/Gunicorn
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
